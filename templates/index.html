@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyDash India</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: #f6f7f8;
+    color: #1e293b;
+}
+
+header {
+    background: white;
+    padding: 15px 40px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.container {
+    max-width: 1300px;
+    margin: auto;
+    padding: 40px;
+}
+
+select {
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.card {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 25px;
+}
+
+.chart-card {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.chart-container {
+    height: 400px;
+}
+
+/* BAR FIXED */
+.bar-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    height: 250px;
+    margin-top: 30px;
+}
+
+.bar {
+    width: 80px;
+    height: 220px;
+    background: #e2e8f0;
+    border-radius: 10px 10px 0 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.bar-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 0;
+    border-radius: 10px 10px 0 0;
+    transition: height 0.6s ease;
+}
+
+.weekday { background: #137fec; }
+.weekend { background: #22c55e; }
+
+.bar-label {
+    text-align: center;
+    margin-top: 10px;
+    font-weight: 600;
+}
+
+.value-text {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 5px;
+}
+
+@media(max-width: 992px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>⚡ EnergyDash India</h2>
+</header>
+
+<div class="container">
+
+<label>Select State:</label><br><br>
+<select id="stateSelect">
+{% for state in states %}
+<option value="{{ state }}">{{ state }}</option>
+{% endfor %}
+</select>
+
+<div class="kpi-grid">
+<div class="card"><p>Today's Usage</p><h3>{{ today_usage }} GWh</h3></div>
+<div class="card"><p>Predicted Tomorrow</p><h3>{{ prediction }} GWh</h3></div>
+<div class="card"><p>Temperature</p><h3>{{ temperature }} °C</h3></div>
+<div class="card"><p>Humidity</p><h3>{{ humidity }} %</h3></div>
+</div>
+
+<div class="main-grid">
+
+<div class="chart-card">
+<h3>Monthly Energy Consumption Trend</h3>
+<div class="chart-container">
+<canvas id="monthlyChart"></canvas>
+</div>
+</div>
+
+<div class="chart-card">
+<h3>Behavioral Impact</h3>
+
+<div class="bar-container">
+
+<div>
+<div class="bar"><div class="bar-fill weekday" id="weekdayBar"></div></div>
+<div class="bar-label">Weekdays<div class="value-text" id="weekdayValue"></div></div>
+</div>
+
+<div>
+<div class="bar"><div class="bar-fill weekend" id="weekendBar"></div></div>
+<div class="bar-label">Weekends<div class="value-text" id="weekendValue"></div></div>
+</div>
+
+</div>
+</div>
+
+</div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+const ctx = document.getElementById("monthlyChart").getContext("2d");
+let monthlyChart;
+
+function loadMonthlyData(state) {
+fetch(`/monthly_data/${state}`)
+.then(res => res.json())
+.then(data => {
+
+if (monthlyChart) monthlyChart.destroy();
+
+monthlyChart = new Chart(ctx, {
+type: "line",
+data: {
+labels: data.months,
+datasets: [{
+label: "Average Usage (GWh)",
+data: data.usage,
+borderColor: "#137fec",
+backgroundColor: "rgba(19,127,236,0.15)",
+fill: true,
+tension: 0.4,
+borderWidth: 3,
+pointRadius: 3
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+scales: {
+x: {
+title: { display: true, text: "Month" },
+ticks: { maxRotation: 45, minRotation: 45 }
+},
+y: {
+beginAtZero: false,
+title: { display: true, text: "Energy Usage (GWh)" }
+}
+}
+}
+});
+});
+}
+
+function loadBehavioralData(state) {
+fetch(`/behavioral_data/${state}`)
+.then(res => res.json())
+.then(data => {
+
+const max = Math.max(data.weekday, data.weekend);
+
+document.getElementById("weekdayBar").style.height = (data.weekday/max)*100 + "%";
+document.getElementById("weekendBar").style.height = (data.weekend/max)*100 + "%";
+
+document.getElementById("weekdayValue").innerText = data.weekday + " GWh";
+document.getElementById("weekendValue").innerText = data.weekend + " GWh";
+});
+}
+
+const defaultState = document.getElementById("stateSelect").value;
+
+loadMonthlyData(defaultState);
+loadBehavioralData(defaultState);
+
+document.getElementById("stateSelect").addEventListener("change", function () {
+loadMonthlyData(this.value);
+loadBehavioralData(this.value);
+});
+
+});
+</script>
+
+</body>
+</html>
