@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% set active = "states" %}
+{% block title %}States · EnergyIQ{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title">State <span class="accent">Analysis</span></div>
+  <div class="page-subtitle">Per-state energy consumption breakdown</div>
+</div>
+
+<div class="chart-card">
+  <div class="cc-head"><span class="cc-title">Average Usage by State</span><span class="cc-badge">Ranked</span></div>
+  <div class="chart-wrap" style="height:310px"><canvas id="stateBarChart"></canvas></div>
+</div>
+
+<div class="chart-card">
+  <div class="cc-head"><span class="cc-title">State Statistics</span></div>
+  <input type="text" id="stateSearch" placeholder="Search state…" style="max-width:280px;margin-bottom:1rem">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>State</th><th>Avg Usage</th><th>Total Usage</th><th>Max</th><th>Min</th></tr></thead>
+      <tbody id="stateTableBody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allRows = [];
+(async () => {
+  allRows = (await fetch('/api/states').then(r=>r.json())).sort((a,b)=>b.avg-a.avg);
+
+  mkChart('stateBarChart','bar',{
+    labels:allRows.map(s=>s.state),
+    datasets:[{label:'Avg Usage',data:allRows.map(s=>s.avg),
+      backgroundColor:allRows.map((_,i)=>`hsla(${190+i*3.2},72%,55%,.72)`),
+      borderRadius:3,borderSkipped:false}]
+  }, barOpts({
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{maxRotation:90,color:C.muted},grid:{display:false}},y:{grid:{color:C.border},ticks:{color:C.muted}}}
+  }));
+
+  renderTable(allRows);
+  document.getElementById('stateSearch').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    renderTable(allRows.filter(s=>s.state.toLowerCase().includes(q)));
+  });
+})();
+
+function renderTable(rows) {
+  document.getElementById('stateTableBody').innerHTML = rows.map((s,i)=>`
+    <tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><strong>${s.state}</strong></td>
+      <td style="color:var(--a1)">${s.avg}</td>
+      <td>${(s.total/1e3).toFixed(1)}K</td>
+      <td style="color:var(--a2)">${s.max}</td>
+      <td style="color:var(--a4)">${s.min}</td>
+    </tr>`).join('');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}EnergyIQ{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/main.css">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<nav>
+  <a class="nav-brand" href="/">⚡ Energy<span>IQ</span></a>
+  <div class="nav-tabs">
+    <a class="nav-tab {% if active=='overview' %}active{% endif %}" href="/">Overview</a>
+    <a class="nav-tab {% if active=='insights' %}active{% endif %}" href="/insights">Insights</a>
+    <a class="nav-tab {% if active=='states'   %}active{% endif %}" href="/states">States</a>
+    <a class="nav-tab {% if active=='models'   %}active{% endif %}" href="/models">Models</a>
+    <a class="nav-tab {% if active=='predict'  %}active{% endif %}" href="/predict">Predict</a>
+  </div>
+</nav>
+<main class="page-wrap">
+  {% block content %}{% endblock %}
+</main>
+<script src="/static/js/charts.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
