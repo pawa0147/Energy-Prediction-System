@@ -121,7 +121,7 @@ load_all()
 
 # ── Page routes ───────────────────────────────────────────────────────────────
 @app.route('/')
-def index():         return render_template('overview.html')
+def index():         return render_template('index.html')
 @app.route('/insights')
 def insights():      return render_template('insights.html')
 @app.route('/states')
@@ -157,9 +157,11 @@ def api_timeseries():
 
 @app.route('/api/monthly')
 def api_monthly():
+    state = request.args.get('state', 'Overall')
+    sub = df if state in ['All', 'Overall'] else df[df['States'] == state]
     m_map = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',
              7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'}
-    monthly = df.groupby('Month')['Usage'].mean().reset_index()
+    monthly = sub.groupby('Month')['Usage'].mean().reset_index()
     return jsonify({
         'months': [m_map[m] for m in monthly['Month'].tolist()],
         'usage':  [round(v, 2) for v in monthly['Usage'].tolist()],
@@ -177,7 +179,29 @@ def api_weekday_weekend():
 def api_states():
     s = df.groupby('States')['Usage'].agg(['mean','sum','max','min']).reset_index()
     s.columns = ['state','avg','total','max','min']
-    return jsonify(s.round(2).to_dict(orient='records'))
+    
+    # Merge latitude and longitude from STATE_COORDS for the map
+    records = s.round(2).to_dict(orient='records')
+    for row in records:
+        loc = STATE_COORDS.get(row['state'])
+        if loc:
+            row['lat'] = loc['lat']
+            row['lon'] = loc['lon']
+        else:
+            row['lat'], row['lon'] = None, None
+            
+    return jsonify(records)
+
+@app.route('/api/temp_vs_usage')
+def api_temp_vs_usage():
+    # group by rounded temperature to downsample slightly and average the usage
+    if 'temperature' not in df.columns:
+        return jsonify(error="Temperature data missing"), 400
+    sub = df.dropna(subset=['temperature', 'Usage'])
+    sub['temp_rounded'] = sub['temperature'].round(0)
+    agg = sub.groupby('temp_rounded')['Usage'].mean().reset_index()
+    points = [{'x': round(row['temp_rounded'], 1), 'y': round(row['Usage'], 2)} for _, row in agg.iterrows()]
+    return jsonify(points)
 
 @app.route('/api/state_list')
 def api_state_list():
@@ -185,7 +209,9 @@ def api_state_list():
 
 @app.route('/api/distribution')
 def api_distribution():
-    counts, edges = np.histogram(df['Usage'].dropna(), bins=30)
+    state = request.args.get('state', 'Overall')
+    sub = df if state in ['All', 'Overall'] else df[df['States'] == state]
+    counts, edges = np.histogram(sub['Usage'].dropna(), bins=30)
     mids = [(edges[i]+edges[i+1])/2 for i in range(len(edges)-1)]
     return jsonify({'bins':[round(v,2) for v in mids], 'counts':counts.tolist()})
 

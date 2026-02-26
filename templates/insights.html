@@ -10,26 +10,27 @@
 <div class="grid-2" id="insightCards" style="margin-bottom:1.5rem"></div>
 
 <div class="chart-card">
-  <div class="cc-head"><span class="cc-title">Correlation Heatmap</span><span class="cc-badge">Numeric features</span></div>
+  <div class="cc-head"><span class="cc-title">Feature Correlation with Usage</span><span class="cc-badge">Simple Bar
+      Chart</span></div>
   <div class="chart-wrap" style="height:420px"><canvas id="corrChart"></canvas></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-(async () => {
-  const [ov, ww, m, corr] = await Promise.all([
-    fetch('/api/overview').then(r=>r.json()),
-    fetch('/api/weekday_weekend').then(r=>r.json()),
-    fetch('/api/monthly').then(r=>r.json()),
-    fetch('/api/correlation').then(r=>r.json()),
-  ]);
+  (async () => {
+    const [ov, ww, m, corr] = await Promise.all([
+      fetch('/api/overview').then(r => r.json()),
+      fetch('/api/weekday_weekend').then(r => r.json()),
+      fetch('/api/monthly').then(r => r.json()),
+      fetch('/api/correlation').then(r => r.json()),
+    ]);
 
-  const wkDiff = (((ww.values[1]-ww.values[0])/ww.values[0])*100).toFixed(1);
-  const maxMon = m.months[m.usage.indexOf(Math.max(...m.usage))];
-  const minMon = m.months[m.usage.indexOf(Math.min(...m.usage))];
+    const wkDiff = (((ww.values[1] - ww.values[0]) / ww.values[0]) * 100).toFixed(1);
+    const maxMon = m.months[m.usage.indexOf(Math.max(...m.usage))];
+    const minMon = m.months[m.usage.indexOf(Math.min(...m.usage))];
 
-  document.getElementById('insightCards').innerHTML = `
+    document.getElementById('insightCards').innerHTML = `
     <div class="insight-card">
       <div class="insight-icon">📅</div>
       <div class="insight-title">Peak Season</div>
@@ -39,8 +40,8 @@
     <div class="insight-card">
       <div class="insight-icon">🏠</div>
       <div class="insight-title">Weekend Effect</div>
-      <div class="insight-stat" style="color:var(--a2)">${wkDiff>0?'+':''}${wkDiff}%</div>
-      <div class="insight-text">Weekend consumption is <strong>${Math.abs(wkDiff)}% ${wkDiff>0?'higher':'lower'}</strong> than weekdays — suggesting ${wkDiff>0?'residential loads dominate':'commercial demand drives weekday peaks'}.</div>
+      <div class="insight-stat" style="color:var(--a2)">${wkDiff > 0 ? '+' : ''}${wkDiff}%</div>
+      <div class="insight-text">Weekend consumption is <strong>${Math.abs(wkDiff)}% ${wkDiff > 0 ? 'higher' : 'lower'}</strong> than weekdays — suggesting ${wkDiff > 0 ? 'residential loads dominate' : 'commercial demand drives weekday peaks'}.</div>
     </div>
     <div class="insight-card">
       <div class="insight-icon">🔗</div>
@@ -56,31 +57,23 @@
     </div>
   `;
 
-  // Correlation heatmap
-  const n = corr.labels.length;
-  const pts = [];
-  for (let i=0;i<n;i++) for (let j=0;j<n;j++) pts.push({x:j,y:i,v:corr.matrix[i][j]});
-  if (charts['corrChart']) charts['corrChart'].destroy();
-  charts['corrChart'] = new Chart(document.getElementById('corrChart'), {
-    type:'scatter',
-    data:{ datasets:[{
-      data:pts, pointStyle:'rect',
-      pointRadius: ctx => (ctx.chart.width/n)*0.46,
-      backgroundColor: ctx => {
-        const v=ctx.raw.v;
-        return v>=0 ? `rgba(0,229,255,${Math.abs(v)*.85})` : `rgba(255,107,53,${Math.abs(v)*.85})`;
-      },
-      borderColor:'transparent'
-    }]},
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{ callbacks:{ label:c=>`${corr.labels[c.raw.y]} ↔ ${corr.labels[c.raw.x]}: ${c.raw.v}` }}},
-      scales:{
-        x:{ type:'linear',min:-0.5,max:n-0.5, ticks:{stepSize:1,color:C.muted,callback:v=>corr.labels[v]||''}, grid:{display:false}},
-        y:{ type:'linear',min:-0.5,max:n-0.5,reverse:true, ticks:{stepSize:1,color:C.muted,callback:v=>corr.labels[v]||''}, grid:{display:false}}
-      }
+    // Simple Bar Chart of Feature Correlation with Usage
+    const usageIdx = corr.labels.indexOf('Usage');
+    if (usageIdx !== -1) {
+      const usageCorr = corr.labels.map((lbl, i) => ({ label: lbl, val: corr.matrix[i][usageIdx] }))
+        .filter(x => x.label !== 'Usage')
+        .sort((a, b) => Math.abs(b.val) - Math.abs(a.val));
+
+      mkChart('corrChart', 'bar', {
+        labels: usageCorr.map(x => x.label),
+        datasets: [{
+          label: 'Correlation with Usage',
+          data: usageCorr.map(x => x.val),
+          backgroundColor: usageCorr.map(x => x.val >= 0 ? 'rgba(0,229,255,0.7)' : 'rgba(255,107,53,0.7)'),
+          borderRadius: 4
+        }]
+      }, barOpts({ indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `Correlation: ${c.raw}` } } } }));
     }
-  });
-})();
+  })();
 </script>
 {% endblock %}
