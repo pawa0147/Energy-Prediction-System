@@ -103,6 +103,8 @@ STATE_COORDS = {
 df = None
 ridge_model = None
 
+#api fix
+
 def load_all():
     global df, ridge_model
     csv = os.path.join(BASE, 'energy_with_features.csv')
